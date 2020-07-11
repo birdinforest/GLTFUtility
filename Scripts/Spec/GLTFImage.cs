@@ -34,7 +34,8 @@ namespace Siccity.GLTFUtility {
 			}
 
 			public IEnumerator CreateTextureAsync(bool linear, Action<Texture2D> onFinish, Action<float> onProgress = null) {
-				if (!string.IsNullOrEmpty(path)) {
+				var loadFromPath = true;
+				if (!string.IsNullOrEmpty(path) && loadFromPath) {
 #if UNITY_EDITOR
 					// Load textures from asset database if we can
 					Texture2D assetTexture = UnityEditor.AssetDatabase.LoadAssetAtPath(path, typeof(Texture2D)) as Texture2D;
@@ -45,30 +46,42 @@ namespace Siccity.GLTFUtility {
 					}
 #endif
 
-#if !UNITY_EDITOR && ( UNITY_ANDROID || UNITY_IOS )
+// #if !UNITY_EDITOR && ( UNITY_ANDROID || UNITY_IOS )
 					path = "File://" + path;
-#endif
+// #endif
+					// path = "https://cdn4.iconfinder.com/data/icons/logos-brands-5/24/unity-512.png";
+
 					// TODO: Support linear/sRGB textures
-					using(UnityWebRequest uwr = UnityWebRequestTexture.GetTexture(path, true)) {
-						UnityWebRequestAsyncOperation operation = uwr.SendWebRequest();
-						float progress = 0;
-						while (!operation.isDone) {
-							if (progress != uwr.downloadProgress) {
-								if (onProgress != null) onProgress(uwr.downloadProgress);
-							}
-							yield return null;
-						}
+					using(UnityWebRequest uwr = UnityWebRequestTexture.GetTexture(path)) {
+						// UnityWebRequestAsyncOperation operation = uwr.SendWebRequest();
+						// float progress = 0;
+						// while (!operation.isDone) {
+						// 	if (progress != uwr.downloadProgress) {
+						// 		if (onProgress != null) onProgress(uwr.downloadProgress);
+						// 		progress = uwr.downloadProgress;
+						// 	}
+						// 	Debug.Log("Waiting ...." + uwr.downloadProgress);
+						// 	yield return null;
+						// }
+
+						yield return uwr.SendWebRequest();
+
+						Debug.Log("Loading done? " + uwr.downloadProgress + " " + uwr.isDone.ToString());
 
 						if (onProgress != null) onProgress(1f);
 
 						if (uwr.isNetworkError || uwr.isHttpError) {
 							Debug.LogError("GLTFImage.cs ToTexture2D() ERROR: " + uwr.error);
 						} else {
-							Texture2D tex = DownloadHandlerTexture.GetContent(uwr);
+							// Texture2D tex = DownloadHandlerTexture.GetContent(uwr);
+							Texture2D tex = new Texture2D(2, 2, TextureFormat.ARGB32, true, linear);
 							tex.name = Path.GetFileNameWithoutExtension(path);
-							onFinish(tex);
+							if (!tex.LoadImage(uwr.downloadHandler.data)) {
+								Debug.Log("mimeType not supported");
+								yield break;
+							} else onFinish(tex);
+							uwr.Dispose();
 						}
-						uwr.Dispose();
 					}
 				} else {
 					Texture2D tex = new Texture2D(2, 2, TextureFormat.ARGB32, true, linear);
