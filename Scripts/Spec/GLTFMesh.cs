@@ -78,8 +78,12 @@ namespace Siccity.GLTFUtility {
 							int vertCount = verts.Count;
 
 							// Tris - (Invert all triangles. Instead of flipping each triangle, just flip the entire array. Much easier)
+							// If indicse not defined, create indices in range of [0, vertCount-1].
 							if (primitive.indices.HasValue) {
 								submeshTris.Add(new List<int>(accessors[primitive.indices.Value].ReadInt().Reverse().Select(x => x + vertStartIndex)));
+								submeshTrisMode.Add(primitive.mode);
+							} else {
+								submeshTris.Add(Enumerable.Range(0, vertCount).ToList());
 								submeshTrisMode.Add(primitive.mode);
 							}
 
